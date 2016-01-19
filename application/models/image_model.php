@@ -25,7 +25,7 @@ class Image_model extends CI_Model {
 
 		if(!$this->upload->do_upload($pic_type)){
 			$error = $this->upload->display_errors();
-			 print_r($error);die;
+			// print_r($error);die;
 		} else {
 			$image_data = $this->upload->data(); //upload the image
 			$resize['source_image'] = $image_data['full_path'];

@@ -15,7 +15,7 @@
  */
 
 // This can be removed if you use __autoload() in config.php OR use Modular Extensions
-require APPPATH.'/helpers/responseMessages_helper.php';
+require APPPATH.'/helpers/response_helper.php';
 
 abstract class REST_Controller extends CI_Controller
 {

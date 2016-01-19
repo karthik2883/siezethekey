@@ -4,11 +4,12 @@ class User extends REST_Controller {
 
 	public function __construct(){
 		parent::__construct();
-		$this->load->helper('responseMessages');
+		$this->load->helper('response');
 		$this->load->helper('common');
 		$this->load->library('twilio_sms_library');
 		$this->load->model('user_model');
 		$this->load->model('image_model');
+		$this->lang->load('english', 'english');
 		
 		
 	}
@@ -23,14 +24,14 @@ class User extends REST_Controller {
 	*generate token and send to user
 	*@post
 	**********/
-	public function tokenGenerate_post(){
+	public function sendSms_post(){
 		$this->form_validation->set_rules('number','Contact Number','required|max_length[11]|min_length[10]|numeric');
 		if($this->form_validation->run()==TRUE){
 			$number = $this->post('number');
 			$data = $this->user_model->tokenGenerate($number);
 			$this->response($data);
 		}else{
-			$this->response(response_fail('FAILED', validation_errors()));
+			$this->response(response_fail('FAILED',  strip_tags(validation_errors())));
 		}
 		
 		
@@ -56,16 +57,13 @@ class User extends REST_Controller {
 			$number = $this->post('number');
 			$token =  $this->post('token');
 			$deviceid = $this->post('deviceid');
-			//$image_data = $this->image_model->do_upload('profile_pic');
-			if($image_data == false){
-			//	$this->response(response_fail('FAILED', "Image have not uploaded, Please try Again"));
-			}
+		
 			$data = $this->user_model->checkToken($number,$token);
 			if($data == true){
-				$user_data = $this->user_model->userRegister($number,$deviceid,$image_data);
+				$user_data = $this->user_model->userRegister($number,$deviceid);
 				
 				if(!empty($user_data)){
-				$this->response(response_success(array("user"=>"REGISTERED"),"SUCCESS", "NULL"));
+				$this->response(response_success(array("user"=>"REGISTERED"),"SUCCESS", ""));
 				}else{
 					$this->response(response_fail('FAILED', "User Already Registered"));
 				}
@@ -74,7 +72,7 @@ class User extends REST_Controller {
 			}
 			
 		}else{
-			$this->response(response_fail('FAILED', validation_errors()));
+			$this->response(response_fail('FAILED', strip_tags(validation_errors())));
 		}
 		
 		
@@ -89,20 +87,17 @@ class User extends REST_Controller {
 	
 	public function userLogin_post(){
 		 $this->form_validation->set_rules('number','Contact Number','required|max_length[11]|min_length[10]|numeric');
-		 $this->form_validation->set_rules('deviceid','Device Id','required');
-		
 		if($this->form_validation->run()==TRUE){
 			$number = $this->post('number');
-			$deviceid = $this->post('deviceid');
-				$user_data = $this->user_model->userLogin($number,$deviceid);
+				$user_data = $this->user_model->userLogin($number);
 				
 				if($user_data){
-						$this->response(response_success($user_data,"SUCCESS", "NULL"));
+						$this->response(response_success($user_data,"SUCCESS", ""));
 				}else{
 					$this->response(response_fail('FAILED',"Authentication faled"));
 				}
 		}else{
-			$this->response(response_fail('FAILED', validation_errors()));
+			$this->response(response_fail('FAILED',  strip_tags(validation_errors())));
 		}
 	}
 	
@@ -123,19 +118,50 @@ class User extends REST_Controller {
 			$number = $this->post('number');
 			$name = $this->post('name');
 			$image_data = $this->image_model->do_upload('contact_pic');
-			if($image_data == false){
-				$this->response(response_fail('FAILED', "Image have not uploaded, Please try Again"));
-			}
+		
 			$user_data = $this->user_model->addUser($contactUserId,$number,$name,$image_data);
 			if(!empty($user_data)){
-			$this->response(response_success($user_data,"SUCCESS", "NULL"));
+				if($user_data ==="EXCEED"){
+					$this->response(response_fail('FAILED','You can not add more than '.CONTACT_SIZE.' contacts!' ));
+				}
+			$this->response(response_success($user_data,"SUCCESS", ""));
 			}else{
 				$this->response(response_fail('FAILED','Contact already exist!' ));
 			}
 		}else{
-			$this->response(response_fail('FAILED', validation_errors()));
+			$this->response(response_fail('FAILED',  strip_tags(validation_errors())));
 		}
 		
+	}
+	
+	/*
+	 *send alert for other user
+	 *@post
+	 */
+	public function sendAlert_post(){
+		$this->form_validation->set_rules('number','Contact Number','required|max_length[11]|min_length[10]|numeric');
+		if($this->form_validation->run()==TRUE){
+			$number = $this->post('number');
+			$lat = $this->post('lat');
+			$long = $this->post('long');
+			$data = $this->user_model->sendAlert($number,$lat,$long);
+			if($data){
+				$this->response(response_success(array('data' => $data),"Alert sent!!!", ""));
+			}else{
+				$this->response(response_fail('FAILED','No contacts added by user.' ));
+			}
+		}else{
+				$this->response(response_fail('FAILED',  strip_tags(validation_errors())));
+		}
+	}
+	
+	/****
+	 *city list
+	 *@post
+	 */
+	public function cityList_post(){
+		$data = $this->user_model->get("city");
+		$this->response(response_success($data,"SUCCESS", ""));
 	}
 	
 	

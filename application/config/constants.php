@@ -20,6 +20,8 @@ define('DIR_WRITE_MODE', 0777);
 
 define('DATE',date('Y-m-d H:i:s'));
 define('TOKEN',mt_rand(100000, 999999));
+define('CONTACT_SIZE',5);
+
 
 
 /***FILE type constants***/
