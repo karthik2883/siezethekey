@@ -25,7 +25,7 @@ class User extends REST_Controller {
 	*@post
 	**********/
 	public function sendSms_post(){
-		$this->form_validation->set_rules('number','Contact Number','required|max_length[11]|min_length[10]|numeric');
+		$this->form_validation->set_rules('number','Contact Number','required|max_length[15]|min_length[10]');
 		if($this->form_validation->run()==TRUE){
 			$number = $this->post('number');
 			$data = $this->user_model->tokenGenerate($number);
@@ -49,10 +49,10 @@ class User extends REST_Controller {
 	****/
 	
 	public function checkToken_post(){
-		$this->form_validation->set_rules('number','Contact Number','required|max_length[11]|min_length[10]|numeric');
+		$this->form_validation->set_rules('number','Contact Number','required|max_length[15]|min_length[10]');
 		$this->form_validation->set_rules('deviceid','Device Id','required');
 		//$this->form_validation->set_rules('profile_pic','Profile Pic','required');
-		$this->form_validation->set_rules('token','Token','required|exact_length[6]|numeric');
+		$this->form_validation->set_rules('token','Token','required|exact_length[6]');
 		if($this->form_validation->run()==TRUE){
 			$number = $this->post('number');
 			$token =  $this->post('token');
@@ -86,7 +86,7 @@ class User extends REST_Controller {
 	 */
 	
 	public function userLogin_post(){
-		 $this->form_validation->set_rules('number','Contact Number','required|max_length[11]|min_length[10]|numeric');
+		 $this->form_validation->set_rules('number','Contact Number','required|max_length[15]|min_length[10]');
 		if($this->form_validation->run()==TRUE){
 			$number = $this->post('number');
 				$user_data = $this->user_model->userLogin($number);
@@ -110,7 +110,7 @@ class User extends REST_Controller {
 	public function contactAdd_post(){
 		
 		  $this->form_validation->set_rules('contactUserId','UserId','required');
-		 $this->form_validation->set_rules('number','Contact Number','required|max_length[11]|min_length[10]|numeric');
+		 $this->form_validation->set_rules('number','Contact Number','required|max_length[15]|min_length[10]');
 		 $this->form_validation->set_rules('name','Name','required');
 		
 		if($this->form_validation->run()==TRUE){
@@ -139,17 +139,15 @@ class User extends REST_Controller {
 	 *@post
 	 */
 	public function sendAlert_post(){
-		$this->form_validation->set_rules('number','Contact Number','required|max_length[11]|min_length[10]|numeric');
+		$this->form_validation->set_rules('number','Contact Number','required|max_length[15]|min_length[10]');
 		if($this->form_validation->run()==TRUE){
-			$number = $this->post('number');
-			$lat = $this->post('lat');
-			$long = $this->post('long');
-			$data = $this->user_model->sendAlert($number,$lat,$long);
+			$data = $this->user_model->sendAlert();
 			if($data){
 				$this->response(response_success(array('data' => $data),"Alert sent!!!", ""));
 			}else{
-				$this->response(response_fail('FAILED','No contacts added by user.' ));
+				$this->response(response_success(array("FAILED","Message not sent to anyone")));
 			}
+			
 		}else{
 				$this->response(response_fail('FAILED',  strip_tags(validation_errors())));
 		}
@@ -162,6 +160,97 @@ class User extends REST_Controller {
 	public function cityList_post(){
 		$data = $this->user_model->get("city");
 		$this->response(response_success($data,"SUCCESS", ""));
+	}
+	
+	/***
+	 *get venue list by city id
+	 *@post
+	 */
+	public function getVenueList_post()
+	{
+		$this->form_validation->set_rules('cityID','City Id','required');
+		if($this->form_validation->run()==TRUE){
+		$cityID = $this->post('cityID');
+		$data = $this->user_model->get_venue("venue",array('venueCityId'=>$cityID));
+		$this->response(response_success($data,"SUCCESS", ""));
+		}else{
+				$this->response(response_fail('FAILED',  strip_tags(validation_errors())));
+		}
+	
+	}
+	
+	/**
+	 *alert venue manager
+	 *@post
+	 */
+	public function alertVenueManager_post(){
+		$this->form_validation->set_rules('mgrContact','Venue Manager Contact nu.','required');
+		$this->form_validation->set_rules('alertText','Alert Text','required');
+		if($this->form_validation->run()==TRUE){
+			$mgrContact = $this->post('mgrContact');
+			$alerttext = $this->post('alertText');
+			$data = $this->user_model->alertVenueManager($mgrContact,$alerttext);
+			$this->response(response_success($data,"SUCCESS", ""));
+		}else{
+			$this->response(response_fail('FAILED',  strip_tags(validation_errors())));
+		}
+	}
+	
+	/*
+	 *delete contacts
+	 *@post
+	 */
+	public function contactDelete_post(){
+		$this->form_validation->set_rules('contactId','ContactId','required');
+		if($this->form_validation->run()==TRUE){
+			$data = $this->user_model->contactDelete();
+			if($data){
+			$this->response(response_success("Contact deleted","SUCCESS", ""));
+			}else{
+				$this->response(response_fail('FAILED',"Contact not deleted, Something went wrong."));
+			}
+		}else{
+			$this->response(response_fail('FAILED',  strip_tags(validation_errors())));
+		}
+		
+	}
+	
+	
+	/**
+	 *match contact from stk db is registerd or not
+	 *@post
+	 */
+	public function matchContact_post(){
+		$this->form_validation->set_rules('contacts','Contact List','required');
+		if($this->form_validation->run()==TRUE){
+			$data = $this->user_model->matchContact();
+			if($data){
+			$this->response(response_success($data,"SUCCESS", ""));
+			}else{
+				$this->response(response_fail('FAILED',"No contacts registered on app"));
+			}
+		}else{
+			$this->response(response_fail('FAILED',  strip_tags(validation_errors())));
+		}
+	}
+	
+	
+	/**
+	 *deactivate account by userid
+	 *@post
+	 */
+	public function deactivateAccount_post(){
+		$this->form_validation->set_rules('userId','User Id','required');
+		if($this->form_validation->run()==TRUE){
+			$data = $this->user_model->deactivateAccount();
+			if($data){
+				$this->response(response_success("Account Deactivated","SUCCESS", ""));	
+			}else{
+				$this->response(response_fail('FAILED',"Something went wrong!"));
+			}
+		}else{
+			$this->response(response_fail('FAILED',  strip_tags(validation_errors())));
+		}
 	}
 	
 	

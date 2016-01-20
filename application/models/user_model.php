@@ -21,6 +21,15 @@ class User_model extends CI_Model {
        return $data;
     }
     
+     public function get_whereArray($table,$data){
+        $table_name = get_table_name($table);
+        $this->db->select('*');
+        $this->db->from($table_name);
+        $this->db->where($data);
+       $data =  $this->db->get()->result_array();
+       return $data;
+    }
+    
     /**
      *get count of table
      *@post
@@ -48,13 +57,57 @@ class User_model extends CI_Model {
         return $data;
     }
     
+    /**
+     *delete data with condtion
+     *@post
+     */
+    public function dbDelete($table,$where){
+        $table_name = get_table_name($table);
+        $this->db->delete($table_name,$where);
+        if($this->db->affected_rows()){
+            return true;
+        }else{
+            return false;
+        }
+    }
+    
+    /**
+     *update record by some condtion
+     *@post
+     */
+    public function dbUpdate($table,$data,$where){
+        $table_name = get_table_name($table);
+        $this->db->update($table_name,$data,$where);
+        if($this->db->affected_rows()){
+            return true;
+        }else{
+            return false;
+        }
+    }
+    
+    /**
+     *get venue list
+     *@post
+     */
+    public function get_venue($table,$where)
+    {
+        $venue_table = get_table_name('venue');
+         $this->db->select('*');
+        $this->db->from($venue_table);
+        $this->db->where($where);
+        $data =  $this->db->get()->result_array();
+     
+        return $data;
+    }
+    
+    
     public function tokenGenerate($number){
         $token_table = get_table_name('token');
         $array = array('tokenCreatedDate'=>DATE,
                        'number'=>$number,
                        'token'=>TOKEN);
         $this->db->insert($token_table,$array);
-        $this->twilio_sms_library->send_sms('+91'.$number,'please enter token:'.TOKEN);//918871923988
+        $this->twilio_sms_library->send_sms($number,'please enter token:'.TOKEN);//918871923988
       return   response_success($array,'SUCCESS',"");
     }
     
@@ -97,12 +150,15 @@ class User_model extends CI_Model {
       */
      public function userLogin($number){
         $user_table = get_table_name('user');
-        $where = array('mobile'=>$number);
+        $where = array('mobile'=>$number,'status'=>1);
         $userdata = $this->get_where('user',$where);
+      //  print_r($userdata);die;
         if(!empty($userdata)){
             $this->db->update($user_table,array('token'=>md5($number)),$where);
-          //  return $this->db->last_query();
-            return $this->get_where('user',$where);
+          // return $this->db->last_query();
+            $data['user_info'] = $this->get_where('user',$where);
+            $data['user_contacts'] = $this->get_whereArray('contacts',array('contactUserId'=>$userdata['userId']));
+            return $data;
         }else{
             return false;
         }
@@ -139,26 +195,105 @@ class User_model extends CI_Model {
 	 *send alert for other user
 	 *@post
 	 */
-	public function sendAlert($number,$lat,$long){
+	public function sendAlert(){
         $user_table = get_table_name("user");
         $contact_table = get_table_name('contacts');
-       $sql = "SELECT userId,contactName,contactNumber
+        $number = $this->input->post('number');
+        $lat = $this->input->post('lat');
+        $long = $this->input->post('long');
+        $is_friendsmessage = $this->input->post('is_friendsmessage');
+        $is_remindermessage = $this->input->post('is_remindermessage');
+        $is_uberlinkmessage = $this->input->post('is_uberlinkmessage');
+        $sql = "SELECT userId,contactName,contactNumber
                 FROM ".$user_table."
                 JOIN ".$contact_table." ON contactUserId=userId
                 WHERE mobile=?";
                 $data = $this->db->query($sql,$number)->result_array();
+                $msg['status'] = false;
+                
+                /*send message to his added contacts*/
+                if($is_friendsmessage){
                 if(!empty($data)){
                     foreach($data as $val){
                         $msg = $this->lang->line('USER_ALERT_MESSAGE'). " to find person visit : http://maps.google.com/maps?q=".$lat.",".$long;
-                        $this->twilio_sms_library->send_sms('+91'.$val['contactNumber'],$msg);
+                        $this->twilio_sms_library->send_sms($val['contactNumber'],$msg);
                     }
-                    return $data;
-                 }else{
-                    return false;
+                        $msg = array('message sent to these contact'=>$data,'status'=>true);
+                    }
                  }
+            /*send message to person*/
+            if($is_remindermessage){
+                 $this->twilio_sms_library->send_sms($number,$this->lang->line('REMINDER_PERSON'));
+                 $msg['status'] = true;
+                 
+            }
+            
+            /*send uber link to person*/
+            if($is_uberlinkmessage){
+                 $this->twilio_sms_library->send_sms($number,$this->lang->line('UBER_LINK'));
+                 $msg['status'] = true;
+            }
+                
+              return $msg;
               
     }
     
+    
+    
+    /***
+     *send alert to venue manager
+     *@post
+     */
+    public function alertVenueManager($mgrContact,$alertText){
+         $this->twilio_sms_library->send_sms($mgrContact,$alertText);
+         return array("data"=>"Alert sent to vanue manager");
+    }
+    
+    /*
+	 *delete contacts
+	 *@post
+	 */
+	public function contactDelete(){
+        $contactid = $this->input->post('contactId');
+        $data = $this->dbDelete('contacts',array('contactId'=>$contactid));
+        if($data){
+            return true;
+        }else{
+            return false;
+        }
+    }
+    
+    
+    	/**
+	 *match contact from stk db is registerd or not
+	 *@post
+	 */
+	public function matchContact(){
+        
+        $user_table = get_table_name('user');
+        $contacts = $this->input->post('contacts');
+        $sql = "SELECT mobile
+                FROM ".$user_table."
+                WHERE mobile IN(?)";
+        $data = $this->db->query($sql,$contacts)->result_array();
+        return $data;
+    }
+		
+    
+    	/**
+	 *deactivate account by userid
+	 *@post
+	 */
+	public function deactivateAccount(){
+        $userid = $this->input->post('userId');
+        $data = $this->dbUpdate('user',array('status'=>0),array('userId'=>$userid));
+        if($data){
+            return true;
+        }else{
+            return false;
+        }
+        
+    }
     
     
 }
