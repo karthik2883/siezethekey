@@ -199,8 +199,8 @@ class User_model extends CI_Model {
         $user_table = get_table_name("user");
         $contact_table = get_table_name('contacts');
         $number = $this->input->post('number');
-        $lat = $this->input->post('lat');
-        $long = $this->input->post('long');
+        $cityName = $this->input->post('cityName');
+        $venueName = $this->input->post('venueName');
         $is_friendsmessage = $this->input->post('is_friendsmessage');
         $is_remindermessage = $this->input->post('is_remindermessage');
         $is_uberlinkmessage = $this->input->post('is_uberlinkmessage');
@@ -215,7 +215,11 @@ class User_model extends CI_Model {
                 if($is_friendsmessage){
                 if(!empty($data)){
                     foreach($data as $val){
-                        $msg = $this->lang->line('USER_ALERT_MESSAGE'). " to find person visit : http://maps.google.com/maps?q=".$lat.",".$long;
+                        $msg = "";
+                        $msg .= $this->lang->line('USER_ALERT_MESSAGE');
+                        if($cityName){
+                        $mss .= " person current location is ".$venueName.", ".$cityName;
+                        }
                         $this->twilio_sms_library->send_sms($val['contactNumber'],$msg);
                     }
                         $msg = array('message sent to these contact'=>$data,'status'=>true);
@@ -223,8 +227,17 @@ class User_model extends CI_Model {
                  }
             /*send message to person*/
             if($is_remindermessage){
-                 $this->twilio_sms_library->send_sms($number,$this->lang->line('REMINDER_PERSON'));
-                 $msg['status'] = true;
+              $sql = "SELECT COUNT(*) count, deviceId
+                    FROM ".$user_table." 
+                    WHERE mobile = ?";
+                $user_info = $this->db->query($sql,$number)->row_array();
+                if($user_info['count']>0){
+                  $this->notification_model->sendPushOnServer($user_info['deviceId'],$this->lang->line('REMINDER_PERSON'));
+                }else{
+                    
+                   $this->twilio_sms_library->send_sms($number,$this->lang->line('REMINDER_PERSON'));
+                }
+                $msg['status'] = true;
                  
             }
             
@@ -272,10 +285,11 @@ class User_model extends CI_Model {
         
         $user_table = get_table_name('user');
         $contacts = $this->input->post('contacts');
+        $contact = str_replace(",","|",$contacts);
         $sql = "SELECT mobile
                 FROM ".$user_table."
-                WHERE mobile IN(?)";
-        $data = $this->db->query($sql,$contacts)->result_array();
+                WHERE mobile  REGEXP(?)";
+        $data = $this->db->query($sql,$contact)->result_array();
         return $data;
     }
 		

@@ -9,6 +9,7 @@ class User extends REST_Controller {
 		$this->load->library('twilio_sms_library');
 		$this->load->model('user_model');
 		$this->load->model('image_model');
+		$this->load->model('notification_model');
 		$this->lang->load('english', 'english');
 		
 		
@@ -141,7 +142,9 @@ class User extends REST_Controller {
 	public function sendAlert_post(){
 		$this->form_validation->set_rules('number','Contact Number','required|max_length[15]|min_length[10]');
 		if($this->form_validation->run()==TRUE){
+			
 			$data = $this->user_model->sendAlert();
+			
 			if($data){
 				$this->response(response_success(array('data' => $data),"Alert sent!!!", ""));
 			}else{
@@ -227,7 +230,7 @@ class User extends REST_Controller {
 			if($data){
 			$this->response(response_success($data,"SUCCESS", ""));
 			}else{
-				$this->response(response_fail('FAILED',"No contacts registered on app"));
+				$this->response(response_success("No contact found on App.","SUCCESS", ""));
 			}
 		}else{
 			$this->response(response_fail('FAILED',  strip_tags(validation_errors())));
